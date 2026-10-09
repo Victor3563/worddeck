@@ -1,7 +1,7 @@
 # Подставляются только ${NGINX_*} и ${BACKEND_*}; собственные $переменные nginx не трогаются.
 
-# DNS Docker: nginx периодически заново разрешает имя backend, поэтому реплики,
-# добавленные через `docker compose up --scale backend=N`, тоже получают трафик.
+# nginx периодически заново берет имя backend, поэтому реплики, добавленные
+# через `docker compose up --scale` или `kubectl scale`, тоже получают трафик.
 resolver ${NGINX_RESOLVER} valid=10s ipv6=off;
 
 upstream api_backend {

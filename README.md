@@ -40,6 +40,30 @@ docker compose down
 docker compose down -v
 ```
 
+## Запуск в minikube
+
+Нужен рантайм docker, иначе `minikube docker-env` не работает
+
+```bash
+minikube start --driver=docker --container-runtime=docker --memory=3072 --cpus=4
+eval $(minikube docker-env)
+docker build -t worddeck-backend:1.0.0 --build-arg VERSION=1.0.0 backend
+docker build -t worddeck-frontend:1.0.0 frontend
+kubectl apply -k k8s
+kubectl -n worddeck get pods
+minikube service frontend -n worddeck --url
+```
+
+Образы, собранные локальным docker, можно загрузить в minikube так: `minikube image load worddeck-backend:1.0.0`.
+
+Масштабирование и удаление:
+
+```bash
+kubectl -n worddeck scale deployment backend --replicas=4
+kubectl -n worddeck scale deployment frontend --replicas=3
+kubectl delete -k k8s
+```
+
 ## Проверки
 
 Сквозная проверка API на запущенном стенде. С флагом `--rate-limit` дополнительно проверяется лимит попыток входа.

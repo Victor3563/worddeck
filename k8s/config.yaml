@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: changeMePostgres123
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres
+data:
+  POSTGRES_DB: worddeck
+  POSTGRES_USER: worddeck
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend
+data:
+  PORT: "8080"
+  LOG_LEVEL: info
+  LOG_FORMAT: json
+  SESSION_TTL: 720h
+  COOKIE_SECURE: "false"
+  SHUTDOWN_TIMEOUT: 15s
+  MAX_IMPORT_BYTES: "1048576"
+  HTTP_READ_HEADER_TIMEOUT: 5s
+  HTTP_READ_TIMEOUT: 30s
+  HTTP_WRITE_TIMEOUT: 60s
+  HTTP_IDLE_TIMEOUT: 120s
+  DB_MAX_OPEN_CONNS: "10"
+  DB_MAX_IDLE_CONNS: "5"
+  DB_CONN_MAX_IDLE_TIME: 5m
+  DB_CONN_MAX_LIFETIME: 30m
+  DB_CONNECT_TIMEOUT: 60s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend
+data:
+  NGINX_PORT: "80"
+  NGINX_RESOLVER: kube-dns.kube-system.svc.cluster.local
+  BACKEND_UPSTREAM: backend.worddeck.svc.cluster.local:8080
+  NGINX_CLIENT_MAX_BODY_SIZE: 2m
+  NGINX_AUTH_RATE: 10r/m
+  NGINX_AUTH_BURST: "20"

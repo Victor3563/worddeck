@@ -1,0 +1,18 @@
+# secrets and local config
+.env
+
+# build output / deps
+frontend/node_modules/
+scripts/e2e/node_modules/
+frontend/dist/
+__pycache__/
+backend/server
+*.exe
+
+# editors & OS
+.idea/
+.vscode/
+.DS_Store
+
+# seminar materials
+manifests-*/

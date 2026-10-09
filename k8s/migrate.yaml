@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: worddeck-backend:1.0.0
+          imagePullPolicy: Never
+          args: ["migrate"]
+          envFrom:
+            - configMapRef:
+                name: postgres
+            - configMapRef:
+                name: backend
+            - secretRef:
+                name: postgres
+          env:
+            - name: DATABASE_URL
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)?sslmode=disable
