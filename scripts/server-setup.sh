@@ -11,22 +11,17 @@ apt-get update -q
 apt-get install -yq ca-certificates curl git ufw
 
 echo "== docker"
-if ! command -v docker >/dev/null; then
-  if ! curl -fsSL https://get.docker.com | sh; then
-    rm -f /etc/apt/sources.list.d/docker.list /etc/apt/sources.list.d/docker.sources
-    apt-get update -q
-    apt-get install -yq docker.io
-  fi
-fi
+rm -f /etc/apt/sources.list.d/docker.list /etc/apt/sources.list.d/docker.sources
+command -v docker >/dev/null || apt-get install -yq docker.io
 systemctl enable --now docker
 docker --version
 
 echo "== minikube, kubectl"
-curl -fsSLo /tmp/minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+curl -fsSL --retry 3 --max-time 300 -o /tmp/minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 install -m 0755 /tmp/minikube /usr/local/bin/minikube
-KV=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl"
-curl -fsSLo /tmp/kubectl.sha256 "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl.sha256"
+KV=$(curl -fsSL --retry 3 --max-time 300 https://dl.k8s.io/release/stable.txt)
+curl -fsSL --retry 3 --max-time 300 -o /tmp/kubectl "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl"
+curl -fsSL --retry 3 --max-time 300 -o /tmp/kubectl.sha256 "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl.sha256"
 echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check
 install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 minikube version --short
