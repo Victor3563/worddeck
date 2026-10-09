@@ -16,16 +16,10 @@ command -v docker >/dev/null || apt-get install -yq docker.io
 systemctl enable --now docker
 docker --version
 
-echo "== minikube, kubectl"
+echo "== minikube"
 curl -fsSL --retry 3 --max-time 300 -o /tmp/minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 install -m 0755 /tmp/minikube /usr/local/bin/minikube
-KV=$(curl -fsSL --retry 3 --max-time 300 https://dl.k8s.io/release/stable.txt)
-curl -fsSL --retry 3 --max-time 300 -o /tmp/kubectl "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl"
-curl -fsSL --retry 3 --max-time 300 -o /tmp/kubectl.sha256 "https://dl.k8s.io/release/$KV/bin/linux/amd64/kubectl.sha256"
-echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check
-install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 minikube version --short
-kubectl version --client | head -1
 
 echo "== swap"
 if ! swapon --show | grep -q /swapfile; then
@@ -54,10 +48,19 @@ ufw allow 22/tcp
 ufw allow 8080/tcp
 ufw --force enable
 
-echo "== minikube start, images"
+echo "== minikube start"
+sudo -iu deploy minikube start --driver=docker --container-runtime=docker --cpus=max --memory=2600 \
+  --registry-mirror=https://mirror.gcr.io --registry-mirror=https://dockerhub.timeweb.cloud
+
+echo "== kubectl"
+KUBECTL=$(docker exec minikube sh -c 'ls -d /var/lib/minikube/binaries/*/kubectl | tail -1')
+docker cp "minikube:$KUBECTL" /usr/local/bin/kubectl
+chmod 0755 /usr/local/bin/kubectl
+kubectl version --client | head -1
+
+echo "== images"
 sudo -iu deploy bash -c '
 set -euo pipefail
-minikube start --driver=docker --container-runtime=docker --cpus=max --memory=2600
 eval $(minikube docker-env)
 cd ~/worddeck
 docker build -q -t worddeck-backend:1.0.0 --build-arg VERSION=1.0.0 backend
