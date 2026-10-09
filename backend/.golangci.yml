@@ -1,0 +1,36 @@
+# Запуск: docker run --rm -v "$PWD":/src -w /src golangci/golangci-lint:v2.14.0 golangci-lint run
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose     # незакрытые тела HTTP-ответов
+    - errorlint     # сравнение ошибок без errors.Is/As
+    - gocritic
+    - misspell
+    - nolintlint    # каждый //nolint указывает линтер и причину
+    - revive
+    - rowserrcheck  # не проверен sql.Rows.Err
+    - sqlclosecheck # не закрыты sql.Rows/Stmt
+    - unconvert
+    - unparam
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: exported
+          disabled: true # doc-комментарий на каждое экспортируемое имя — шум
+  exclusions:
+    presets:
+      - std-error-handling
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/worddeck

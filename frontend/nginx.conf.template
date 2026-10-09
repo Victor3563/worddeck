@@ -1,0 +1,81 @@
+# Подставляются только ${NGINX_*} и ${BACKEND_*}; собственные $переменные nginx не трогаются.
+
+# DNS Docker: nginx периодически заново разрешает имя backend, поэтому реплики,
+# добавленные через `docker compose up --scale backend=N`, тоже получают трафик.
+resolver ${NGINX_RESOLVER} valid=10s ipv6=off;
+
+upstream api_backend {
+    zone api_backend 64k;
+    server ${BACKEND_UPSTREAM} resolve;
+    keepalive 16;
+}
+
+# Лимит в nginx, а не в API, чтобы он был общим для всех реплик backend.
+limit_req_zone $binary_remote_addr zone=auth:10m rate=${NGINX_AUTH_RATE};
+limit_req_status 429;
+
+server {
+    listen ${NGINX_PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    client_max_body_size ${NGINX_CLIENT_MAX_BODY_SIZE};
+    server_tokens off;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 512;
+    gzip_types text/css application/javascript application/json image/svg+xml text/plain text/csv;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-ID $request_id;
+    proxy_next_upstream error timeout http_502 http_503;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 60s;
+
+    location ~ ^/api/auth/(login|register)$ {
+        limit_req zone=auth burst=${NGINX_AUTH_BURST} nodelay;
+        error_page 429 = @rate_limited;
+        proxy_pass http://api_backend;
+    }
+
+    location /api/ {
+        proxy_pass http://api_backend;
+    }
+
+    # Тот же формат ошибки, что у API.
+    location @rate_limited {
+        default_type application/json;
+        add_header Retry-After 60 always;
+        return 429 '{"error":{"code":"rate_limited"}}';
+    }
+
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Имена файлов сборки содержат хэш, поэтому их можно кэшировать навсегда.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Неизвестные пути обрабатывает роутер SPA.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

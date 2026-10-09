@@ -1,0 +1,91 @@
+# Запуск: cp .env.example .env && docker compose up --build
+# Приложение: http://localhost:${FRONTEND_PORT:-8080}
+name: worddeck
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-worddeck}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-worddeck}?sslmode=disable
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  DB_CONN_MAX_IDLE_TIME: ${DB_CONN_MAX_IDLE_TIME:-5m}
+  DB_CONN_MAX_LIFETIME: ${DB_CONN_MAX_LIFETIME:-30m}
+  DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-30s}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-worddeck}
+      POSTGRES_USER: ${POSTGRES_USER:-worddeck}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      args:
+        VERSION: ${APP_VERSION:-dev}
+    image: worddeck-backend:${APP_VERSION:-dev}
+    command: ["migrate"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        VERSION: ${APP_VERSION:-dev}
+    image: worddeck-backend:${APP_VERSION:-dev}
+    command: ["serve"]
+    environment:
+      <<: *backend-env
+      PORT: "8080"
+      SESSION_TTL: ${SESSION_TTL:-720h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-15s}
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-10}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
+      MAX_IMPORT_BYTES: ${MAX_IMPORT_BYTES:-1048576}
+      HTTP_READ_HEADER_TIMEOUT: ${HTTP_READ_HEADER_TIMEOUT:-5s}
+      HTTP_READ_TIMEOUT: ${HTTP_READ_TIMEOUT:-30s}
+      HTTP_WRITE_TIMEOUT: ${HTTP_WRITE_TIMEOUT:-60s}
+      HTTP_IDLE_TIMEOUT: ${HTTP_IDLE_TIMEOUT:-120s}
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    image: worddeck-frontend:${APP_VERSION:-dev}
+    environment:
+      NGINX_PORT: "80"
+      BACKEND_UPSTREAM: backend:8080
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-2m}
+      NGINX_AUTH_RATE: ${NGINX_AUTH_RATE:-10r/m}
+      NGINX_AUTH_BURST: ${NGINX_AUTH_BURST:-20}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
