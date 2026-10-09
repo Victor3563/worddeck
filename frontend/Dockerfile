@@ -4,7 +4,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+RUN npm ci --no-audit --no-fund --registry="$NPM_REGISTRY"
 
 COPY . .
 RUN npm run build

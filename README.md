@@ -56,6 +56,8 @@ minikube service frontend -n worddeck --url
 
 Образы, собранные локальным docker, можно загрузить в minikube так: `minikube image load worddeck-backend:1.0.0`.
 
+Если `registry.npmjs.org` недоступен, frontend собирается через зеркало: `--build-arg NPM_REGISTRY=https://registry.npmmirror.com/`.
+
 Масштабирование и удаление:
 
 ```bash

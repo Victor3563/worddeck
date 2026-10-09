@@ -64,7 +64,7 @@ set -euo pipefail
 eval $(minikube docker-env)
 cd ~/worddeck
 docker build -q -t worddeck-backend:1.0.0 --build-arg VERSION=1.0.0 backend
-docker build -q -t worddeck-frontend:1.0.0 frontend
+docker build -q -t worddeck-frontend:1.0.0 --build-arg NPM_REGISTRY=https://registry.npmmirror.com/ frontend
 docker pull -q postgres:16-alpine
 docker images | grep -E "worddeck|postgres"
 kubectl get nodes
