@@ -19,6 +19,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 ENV NGINX_PORT=80 \
     BACKEND_UPSTREAM=backend:8080 \
     NGINX_RESOLVER=127.0.0.11 \
+    NGINX_REAL_IP_FROM=127.0.0.1/32 \
     NGINX_CLIENT_MAX_BODY_SIZE=2m \
     NGINX_AUTH_RATE=10r/m \
     NGINX_AUTH_BURST=20 \
